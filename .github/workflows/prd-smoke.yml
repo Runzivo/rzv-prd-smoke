@@ -12,7 +12,7 @@ on:
         type: choice
         options:
           [rzv-ubuntu-24.04-x64-2vcpu-8gb, rzv-ubuntu-24.04-x64-4vcpu-16gb]
-        default: rzv-ubuntu-24.04-x64-2vcpu-8gb
+        default: rzv-ubuntu-24.04-x64-4vcpu-16gb
       hold_seconds:
         description: Seconds to hold the VM after the check, so runs overlap
         required: false
