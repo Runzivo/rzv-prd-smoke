@@ -1,0 +1,110 @@
+name: prd reliability smoke
+
+on:
+  schedule:
+    - cron: '17 */12 * * *'
+
+permissions: {}
+
+jobs:
+  smoke:
+    name: ${{ matrix.label }} / ${{ matrix.hold_minutes }}m
+    runs-on: ${{ matrix.label }}
+    timeout-minutes: ${{ matrix.timeout_minutes }}
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - label: rzv-ubuntu-24.04-x64-2vcpu-8gb
+            hold_minutes: 2
+            timeout_minutes: 12
+          - label: rzv-ubuntu-24.04-x64-2vcpu-8gb
+            hold_minutes: 5
+            timeout_minutes: 15
+          - label: rzv-ubuntu-24.04-x64-2vcpu-8gb
+            hold_minutes: 10
+            timeout_minutes: 20
+          - label: rzv-ubuntu-24.04-x64-2vcpu-8gb
+            hold_minutes: 20
+            timeout_minutes: 30
+          - label: rzv-ubuntu-24.04-x64-2vcpu-8gb
+            hold_minutes: 40
+            timeout_minutes: 50
+          - label: rzv-ubuntu-24.04-x64-2vcpu-8gb
+            hold_minutes: 80
+            timeout_minutes: 90
+          - label: rzv-ubuntu-24.04-x64-4vcpu-16gb
+            hold_minutes: 2
+            timeout_minutes: 12
+          - label: rzv-ubuntu-24.04-x64-4vcpu-16gb
+            hold_minutes: 5
+            timeout_minutes: 15
+          - label: rzv-ubuntu-24.04-x64-4vcpu-16gb
+            hold_minutes: 10
+            timeout_minutes: 20
+          - label: rzv-ubuntu-24.04-x64-4vcpu-16gb
+            hold_minutes: 20
+            timeout_minutes: 30
+          - label: rzv-ubuntu-24.04-x64-4vcpu-16gb
+            hold_minutes: 40
+            timeout_minutes: 50
+          - label: rzv-ubuntu-24.04-x64-4vcpu-16gb
+            hold_minutes: 80
+            timeout_minutes: 90
+    steps:
+      - name: Record start and expiry gate
+        id: expiry
+        run: |
+          start_epoch="$(date -u +%s)"
+          start_utc="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "start_epoch=${start_epoch}" >> "$GITHUB_OUTPUT"
+          echo "start_utc=${start_utc}" >> "$GITHUB_OUTPUT"
+          if [ "${start_utc}" \> "2026-11-23T23:59:59Z" ]; then
+            echo "expired=true" >> "$GITHUB_OUTPUT"
+            echo "Campaign expired at 2026-11-24T00:00:00Z; skipping Docker and hold."
+          else
+            echo "expired=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Docker
+        if: steps.expiry.outputs.expired != 'true'
+        run: |
+          docker version
+          docker run --rm busybox:1.37 sh -c 'echo container ran on $(uname -m)'
+      - name: Hold
+        if: steps.expiry.outputs.expired != 'true'
+        env:
+          HOLD_MINUTES: ${{ matrix.hold_minutes }}
+        run: sleep "$((HOLD_MINUTES * 60))"
+      - name: Write summary
+        if: always()
+        env:
+          LABEL: ${{ matrix.label }}
+          HOLD_MINUTES: ${{ matrix.hold_minutes }}
+          EXPIRED: ${{ steps.expiry.outputs.expired }}
+          START_EPOCH: ${{ steps.expiry.outputs.start_epoch }}
+          START_UTC: ${{ steps.expiry.outputs.start_utc }}
+          RESULT: ${{ job.status }}
+        run: |
+          end_epoch="$(date -u +%s)"
+          end_utc="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          duration_seconds="unavailable"
+          if [ -n "${START_EPOCH}" ]; then
+            duration_seconds="$((end_epoch - START_EPOCH))"
+          fi
+          result="${RESULT:-unavailable}"
+          if [ "${EXPIRED}" = "true" ]; then
+            result="skipped-expired"
+          fi
+          {
+            echo "## Production reliability smoke"
+            echo
+            echo "- Runner label: \`${LABEL}\`"
+            echo "- Hold: ${HOLD_MINUTES} minutes"
+            echo "- First step start (UTC): ${START_UTC:-unavailable}"
+            echo "- End (UTC): ${end_utc}"
+            echo "- Duration: ${duration_seconds} seconds"
+            echo "- Result: ${result}"
+            echo "- Expiry gate: ${EXPIRED:-unavailable}"
+            echo "- Queue wait: derived externally; join this exact first-step start to GitHub run and job metadata."
+          } >> "$GITHUB_STEP_SUMMARY"
