@@ -1,0 +1,36 @@
+name: prd smoke
+
+# A manual docker check on a Runzivo microVM in production (rzv-infra Part of the
+# exec-02 prd proof). No secrets, no checkout, no concurrency group: several runs
+# may be dispatched at once so the scheduler places them across hosts.
+on:
+  workflow_dispatch:
+    inputs:
+      label:
+        description: Runner label
+        required: true
+        type: choice
+        options:
+          [rzv-ubuntu-24.04-x64-2vcpu-8gb, rzv-ubuntu-24.04-x64-4vcpu-16gb]
+        default: rzv-ubuntu-24.04-x64-2vcpu-8gb
+      hold_seconds:
+        description: Seconds to hold the VM after the check, so runs overlap
+        required: false
+        type: number
+        default: 90
+
+permissions: {}
+
+jobs:
+  docker:
+    runs-on: ${{ inputs.label }}
+    timeout-minutes: 10
+    steps:
+      - name: Docker
+        run: |
+          docker version
+          docker run --rm busybox:1.37 sh -c 'echo container ran on $(uname -m)'
+      - name: Hold
+        env:
+          HOLD_SECONDS: ${{ inputs.hold_seconds }}
+        run: sleep "${HOLD_SECONDS}"
