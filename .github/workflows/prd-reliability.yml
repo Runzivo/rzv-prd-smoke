@@ -1,4 +1,5 @@
 name: prd reliability smoke
+# Hourly at :17 UTC; the hold length follows the 12-hour cycle slot below.
 
 on:
   schedule:
