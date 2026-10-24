@@ -34,7 +34,21 @@ jobs:
         run: |
           docker version
           docker run --rm busybox:1.37 sh -c 'echo container ran on $(uname -m)'
+      - name: Clock before
+        run: |
+          cat /sys/devices/system/clocksource/clocksource0/current_clocksource /sys/devices/system/clocksource/clocksource0/available_clocksource
+          date -u +%s.%N
+          cat /proc/uptime
+          uname -r
+          dmesg 2>/dev/null | grep -iE 'clocksource|tsc|kvm-clock|timer' | tail || true
       - name: Hold
         env:
           HOLD_SECONDS: ${{ inputs.hold_seconds }}
-        run: sleep "${HOLD_SECONDS}"
+        run: |
+          for i in $(seq "${HOLD_SECONDS}"); do sleep 1; printf '%s %s\n' "$(date -u +%T)" "$(cut -d' ' -f1 /proc/uptime)"; done
+      - name: Clock after
+        if: always()
+        run: |
+          date -u +%s.%N
+          cat /proc/uptime
+          dmesg 2>/dev/null | grep -iE 'clocksource|tsc|kvm-clock|timer|watchdog|hung' | tail || true
