@@ -22,19 +22,43 @@ on:
         required: false
         type: number
         default: 90
+      single_sleep:
+        description: One uninterrupted sleep for the whole hold (the reliability workflow's shape)
+        required: false
+        type: boolean
+        default: false
 
 permissions: {}
 
 jobs:
   docker:
     runs-on: ${{ inputs.label }}
-    timeout-minutes: 10
+    timeout-minutes: 40
     steps:
       - name: Docker
         run: |
           docker version
           docker run --rm busybox:1.37 sh -c 'echo container ran on $(uname -m)'
+      - name: Clock before
+        run: |
+          cat /sys/devices/system/clocksource/clocksource0/current_clocksource /sys/devices/system/clocksource/clocksource0/available_clocksource
+          date -u +%s.%N
+          cat /proc/uptime
+          uname -r
+          dmesg 2>/dev/null | grep -iE 'clocksource|tsc|kvm-clock|timer' | tail || true
       - name: Hold
         env:
           HOLD_SECONDS: ${{ inputs.hold_seconds }}
-        run: sleep "${HOLD_SECONDS}"
+          SINGLE_SLEEP: ${{ inputs.single_sleep }}
+        run: |
+          if [ "${SINGLE_SLEEP}" = true ]; then
+            date -u +%T; sleep "${HOLD_SECONDS}"; date -u +%T
+          else
+            for i in $(seq "${HOLD_SECONDS}"); do sleep 1; printf '%s %s\n' "$(date -u +%T)" "$(cut -d' ' -f1 /proc/uptime)"; done
+          fi
+      - name: Clock after
+        if: always()
+        run: |
+          date -u +%s.%N
+          cat /proc/uptime
+          dmesg 2>/dev/null | grep -iE 'clocksource|tsc|kvm-clock|timer|watchdog|hung' | tail || true
