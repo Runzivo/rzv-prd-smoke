@@ -15,6 +15,8 @@ on:
             rzv-ubuntu-24.04-x64-2vcpu-8gb,
             rzv-ubuntu-24.04-x64-4vcpu-16gb,
             rzv-ubuntu-24.04-x64-6vcpu-24gb,
+            rzv-ubuntu-24.04-x64-8vcpu-32gb,
+            rzv-ubuntu-24.04-x64-16vcpu-64gb,
           ]
         default: rzv-ubuntu-24.04-x64-4vcpu-16gb
       hold_seconds:
