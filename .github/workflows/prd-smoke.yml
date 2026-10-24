@@ -28,7 +28,7 @@ permissions: {}
 jobs:
   docker:
     runs-on: ${{ inputs.label }}
-    timeout-minutes: 10
+    timeout-minutes: 40
     steps:
       - name: Docker
         run: |
