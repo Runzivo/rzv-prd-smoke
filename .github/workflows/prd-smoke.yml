@@ -22,6 +22,11 @@ on:
         required: false
         type: number
         default: 90
+      single_sleep:
+        description: One uninterrupted sleep for the whole hold (the reliability workflow's shape)
+        required: false
+        type: boolean
+        default: false
 
 permissions: {}
 
@@ -44,8 +49,13 @@ jobs:
       - name: Hold
         env:
           HOLD_SECONDS: ${{ inputs.hold_seconds }}
+          SINGLE_SLEEP: ${{ inputs.single_sleep }}
         run: |
-          for i in $(seq "${HOLD_SECONDS}"); do sleep 1; printf '%s %s\n' "$(date -u +%T)" "$(cut -d' ' -f1 /proc/uptime)"; done
+          if [ "${SINGLE_SLEEP}" = true ]; then
+            date -u +%T; sleep "${HOLD_SECONDS}"; date -u +%T
+          else
+            for i in $(seq "${HOLD_SECONDS}"); do sleep 1; printf '%s %s\n' "$(date -u +%T)" "$(cut -d' ' -f1 /proc/uptime)"; done
+          fi
       - name: Clock after
         if: always()
         run: |
