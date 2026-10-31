@@ -1,28 +1,20 @@
 name: prd reliability smoke
-# Hourly at :17 UTC; the hold length follows the 12-hour cycle slot below.
+# Four runs a day, 6 hours apart, one runner tier per run. The longest hold runs on the smallest tier.
 
 on:
   schedule:
-    - cron: '17 0,12 * * *'
-    - cron: '17 1,13 * * *'
-    - cron: '17 2,14 * * *'
-    - cron: '17 3,15 * * *'
-    - cron: '17 4,16 * * *'
-    - cron: '17 5,17 * * *'
-    - cron: '17 6,18 * * *'
-    - cron: '17 7,19 * * *'
-    - cron: '17 8,20 * * *'
-    - cron: '17 9,21 * * *'
-    - cron: '17 10,22 * * *'
-    - cron: '17 11,23 * * *'
+    - cron: '17 0 * * *'
+    - cron: '17 6 * * *'
+    - cron: '17 12 * * *'
+    - cron: '17 18 * * *'
   workflow_dispatch:
     inputs:
-      slot:
-        description: Cycle slot
+      tier:
+        description: Runner tier (vCPU)
         required: true
         type: choice
-        options: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']
-        default: '0'
+        options: ['2', '4', '8', '16']
+        default: '2'
 
 permissions: {}
 
@@ -32,19 +24,13 @@ concurrency:
 
 jobs:
   smoke:
-    name: ${{ matrix.label }}
-    runs-on: ${{ matrix.label }}
-    timeout-minutes: ${{ fromJSON('{"0":12,"1":15,"2":20,"3":25,"4":30,"5":35,"6":40,"7":45,"8":50,"9":55,"10":59,"11":59,"17 0,12 * * *":12,"17 1,13 * * *":15,"17 2,14 * * *":20,"17 3,15 * * *":25,"17 4,16 * * *":30,"17 5,17 * * *":35,"17 6,18 * * *":40,"17 7,19 * * *":45,"17 8,20 * * *":50,"17 9,21 * * *":55,"17 10,22 * * *":59,"17 11,23 * * *":59}')[github.event_name == 'workflow_dispatch' && format('{0}', inputs.slot) || github.event.schedule] }}
+    name: ${{ fromJSON('{"2":"rzv-ubuntu-24.04-x64-2vcpu-8gb","4":"rzv-ubuntu-24.04-x64-4vcpu-16gb","8":"rzv-ubuntu-24.04-x64-8vcpu-32gb","16":"rzv-ubuntu-24.04-x64-16vcpu-64gb"}')[fromJSON('{"2":"2","4":"4","8":"8","16":"16","17 0 * * *":"2","17 6 * * *":"4","17 12 * * *":"8","17 18 * * *":"16"}')[github.event_name == 'workflow_dispatch' && format('{0}', inputs.tier) || github.event.schedule]] }}
+    runs-on: ${{ fromJSON('{"2":"rzv-ubuntu-24.04-x64-2vcpu-8gb","4":"rzv-ubuntu-24.04-x64-4vcpu-16gb","8":"rzv-ubuntu-24.04-x64-8vcpu-32gb","16":"rzv-ubuntu-24.04-x64-16vcpu-64gb"}')[fromJSON('{"2":"2","4":"4","8":"8","16":"16","17 0 * * *":"2","17 6 * * *":"4","17 12 * * *":"8","17 18 * * *":"16"}')[github.event_name == 'workflow_dispatch' && format('{0}', inputs.tier) || github.event.schedule]] }}
+    timeout-minutes: ${{ fromJSON('{"2":55,"4":35,"8":25,"16":20}')[fromJSON('{"2":"2","4":"4","8":"8","16":"16","17 0 * * *":"2","17 6 * * *":"4","17 12 * * *":"8","17 18 * * *":"16"}')[github.event_name == 'workflow_dispatch' && format('{0}', inputs.tier) || github.event.schedule]] }}
     env:
-      CYCLE_SLOT: ${{ fromJSON('{"0":"0","1":"1","2":"2","3":"3","4":"4","5":"5","6":"6","7":"7","8":"8","9":"9","10":"10","11":"11","17 0,12 * * *":"0","17 1,13 * * *":"1","17 2,14 * * *":"2","17 3,15 * * *":"3","17 4,16 * * *":"4","17 5,17 * * *":"5","17 6,18 * * *":"6","17 7,19 * * *":"7","17 8,20 * * *":"8","17 9,21 * * *":"9","17 10,22 * * *":"10","17 11,23 * * *":"11"}')[github.event_name == 'workflow_dispatch' && format('{0}', inputs.slot) || github.event.schedule] }}
-      HOLD_MINUTES: ${{ fromJSON('{"0":"2","1":"5","2":"10","3":"15","4":"20","5":"25","6":"30","7":"35","8":"40","9":"45","10":"50","11":"55","17 0,12 * * *":"2","17 1,13 * * *":"5","17 2,14 * * *":"10","17 3,15 * * *":"15","17 4,16 * * *":"20","17 5,17 * * *":"25","17 6,18 * * *":"30","17 7,19 * * *":"35","17 8,20 * * *":"40","17 9,21 * * *":"45","17 10,22 * * *":"50","17 11,23 * * *":"55"}')[github.event_name == 'workflow_dispatch' && format('{0}', inputs.slot) || github.event.schedule] }}
-      TIMEOUT_MINUTES: ${{ fromJSON('{"0":"12","1":"15","2":"20","3":"25","4":"30","5":"35","6":"40","7":"45","8":"50","9":"55","10":"59","11":"59","17 0,12 * * *":"12","17 1,13 * * *":"15","17 2,14 * * *":"20","17 3,15 * * *":"25","17 4,16 * * *":"30","17 5,17 * * *":"35","17 6,18 * * *":"40","17 7,19 * * *":"45","17 8,20 * * *":"50","17 9,21 * * *":"55","17 10,22 * * *":"59","17 11,23 * * *":"59"}')[github.event_name == 'workflow_dispatch' && format('{0}', inputs.slot) || github.event.schedule] }}
-    strategy:
-      fail-fast: false
-      max-parallel: 2
-      matrix:
-        label:
-          [rzv-ubuntu-24.04-x64-2vcpu-8gb, rzv-ubuntu-24.04-x64-4vcpu-16gb]
+      TIER_VCPU: ${{ fromJSON('{"2":"2","4":"4","8":"8","16":"16","17 0 * * *":"2","17 6 * * *":"4","17 12 * * *":"8","17 18 * * *":"16"}')[github.event_name == 'workflow_dispatch' && format('{0}', inputs.tier) || github.event.schedule] }}
+      LABEL: ${{ fromJSON('{"2":"rzv-ubuntu-24.04-x64-2vcpu-8gb","4":"rzv-ubuntu-24.04-x64-4vcpu-16gb","8":"rzv-ubuntu-24.04-x64-8vcpu-32gb","16":"rzv-ubuntu-24.04-x64-16vcpu-64gb"}')[fromJSON('{"2":"2","4":"4","8":"8","16":"16","17 0 * * *":"2","17 6 * * *":"4","17 12 * * *":"8","17 18 * * *":"16"}')[github.event_name == 'workflow_dispatch' && format('{0}', inputs.tier) || github.event.schedule]] }}
+      HOLD_MINUTES: ${{ fromJSON('{"2":"40","4":"20","8":"10","16":"5"}')[fromJSON('{"2":"2","4":"4","8":"8","16":"16","17 0 * * *":"2","17 6 * * *":"4","17 12 * * *":"8","17 18 * * *":"16"}')[github.event_name == 'workflow_dispatch' && format('{0}', inputs.tier) || github.event.schedule]] }}
     steps:
       - name: Record start and expiry gate
         id: expiry
@@ -71,7 +57,6 @@ jobs:
       - name: Write summary
         if: always()
         env:
-          LABEL: ${{ matrix.label }}
           EXPIRED: ${{ steps.expiry.outputs.expired }}
           START_EPOCH: ${{ steps.expiry.outputs.start_epoch }}
           START_UTC: ${{ steps.expiry.outputs.start_utc }}
@@ -93,7 +78,7 @@ jobs:
             echo
             echo "- Runner label: \`${LABEL}\`"
             echo "- Hold: ${HOLD_MINUTES} minutes"
-            echo "- Cycle slot: ${CYCLE_SLOT}"
+            echo "- Tier: ${TIER_VCPU} vCPU"
             echo "- First step start (UTC): ${START_UTC:-unavailable}"
             echo "- End (UTC): ${end_utc}"
             echo "- Duration: ${duration_seconds} seconds"
