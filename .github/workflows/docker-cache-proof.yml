@@ -1,0 +1,36 @@
+name: Docker cache proof
+on:
+  push:
+    branches: [rzv-docker-cache-proof]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: shrd-rzv-ubuntu-24.04-x64-2vcpu-8gb
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build with local layer cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          cache="${RZV_DOCKER_CACHE_DIR:-}"
+          echo "RZV_DOCKER_CACHE_DIR=${cache:-<unset>}"
+          builder="rzv-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          docker buildx create --name "$builder" --driver docker-container
+          trap 'docker buildx rm --force "$builder"' EXIT
+          args=()
+          if [[ -n "$cache" ]]; then
+            rm -rf -- "$cache/next"
+            args+=(--cache-to "type=local,dest=$cache/next,mode=max")
+            if [[ -f "$cache/current/index.json" ]]; then
+              args+=(--cache-from "type=local,src=$cache/current")
+            fi
+          fi
+          docker buildx build --builder "$builder" --progress=plain "${args[@]}" --load --tag example:ci -f Dockerfile.cache-proof .
+          if [[ -n "$cache" ]]; then
+            rm -rf -- "$cache/current"
+            mv -- "$cache/next" "$cache/current"
+          fi
